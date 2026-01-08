@@ -1,0 +1,39 @@
+name: pos_order_basic
+version: 1.0.3+2
+publish_to: none
+description: A new Flutter project.
+environment: 
+  sdk: '>=2.12.0 <3.0.0'
+
+dependencies: 
+  cupertino_icons:
+  getwidget: 
+  get: 
+  uuid: 
+  oktoast: 
+  image: 
+  charset_converter: 
+  flutter_speed_dial: 
+  intl: 
+  qr_flutter: 
+  path_provider: 
+  dio: 
+  network_info_plus: 
+  get_storage: 
+  loader_overlay: 
+  flutter: 
+    sdk: flutter
+dev_dependencies: 
+  flutter_test: 
+    sdk: flutter
+  flutter_launcher_icons: ^0.11.0
+flutter_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/icon.png"
+
+
+
+
+flutter: 
+  uses-material-design: true
