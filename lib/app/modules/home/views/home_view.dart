@@ -35,6 +35,19 @@ class HomeView extends GetView<HomeController> {
                   },
                 );
               }),
+              IconButton(
+                icon: Icon(Icons.refresh),
+                tooltip: "Menü aktualisiert",
+                onPressed: () async {
+                  context.loaderOverlay.show();
+                  final ok = await controller.refreshMenu();
+                  context.loaderOverlay.hide();
+                  Get.snackbar(
+                    "Menu",
+                    ok ? "Menü aktualisiert" : "Menü konnte nicht aktualisiert werden",
+                  );
+                },
+              ),
             ],
           ),
           body: SafeArea(

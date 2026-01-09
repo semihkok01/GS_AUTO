@@ -73,16 +73,27 @@ class HomeController extends GetxController {
   static const String _menuUrl = "https://mobil-dershane.com/menu/menu.json";
   Future<Map<String, dynamic>?>? _menuFetchFuture;
 
-  Future<Map<String, dynamic>?> _fetchMenu() async {
+  Future<Map<String, dynamic>?> _fetchMenu({bool force = false}) async {
+    if (force) {
+      _menuFetchFuture = null;
+      return _loadMenu(bustCache: true);
+    }
     _menuFetchFuture ??= _loadMenu();
     final menu = await _menuFetchFuture;
     _menuFetchFuture = null;
     return menu;
   }
 
-  Future<Map<String, dynamic>?> _loadMenu() async {
+  Future<Map<String, dynamic>?> _loadMenu({bool bustCache = false}) async {
     try {
-      final response = await Dio().get(_menuUrl);
+      final uri = Uri.parse(_menuUrl);
+      final url = bustCache
+          ? uri.replace(queryParameters: {
+              ...uri.queryParameters,
+              "_ts": DateTime.now().millisecondsSinceEpoch.toString(),
+            }).toString()
+          : _menuUrl;
+      final response = await Dio().get(url);
       final data = response.data;
       if (data is Map<String, dynamic>) {
         return data;
@@ -91,7 +102,26 @@ class HomeController extends GetxController {
         return Map<String, dynamic>.from(data);
       }
       if (data is String) {
-        final decoded = jsonDecode(data);
+        var cleaned = data.trimLeft();
+        if (cleaned.startsWith("\uFEFF")) {
+          cleaned = cleaned.substring(1);
+        }
+        if (!cleaned.startsWith("{") && !cleaned.startsWith("[")) {
+          final idxBrace = cleaned.indexOf("{");
+          final idxBracket = cleaned.indexOf("[");
+          int idx = -1;
+          if (idxBrace != -1 && idxBracket != -1) {
+            idx = idxBrace < idxBracket ? idxBrace : idxBracket;
+          } else if (idxBrace != -1) {
+            idx = idxBrace;
+          } else if (idxBracket != -1) {
+            idx = idxBracket;
+          }
+          if (idx > 0) {
+            cleaned = cleaned.substring(idx);
+          }
+        }
+        final decoded = jsonDecode(cleaned);
         if (decoded is Map) {
           return Map<String, dynamic>.from(decoded);
         }
@@ -176,8 +206,71 @@ class HomeController extends GetxController {
     return true;
   }
 
-  Future<void> initProducts() async {
-    final menu = await _fetchMenu();
+  Future<bool> refreshMenu() async {
+    final menu = await _fetchMenu(force: true);
+    if (menu == null) {
+      return false;
+    }
+    return _applyMenu(menu);
+  }
+
+  static const Set<String> _drinkCategories = {
+    "Softdrinks",
+    "Saefte und Schorlen",
+    "Iced Tea Und Refresher",
+    "Hot Drinks",
+    "Wein und Spritzig",
+    "Fassbier",
+    "Flaschenbier",
+    "Cocktails",
+    "Mocktails",
+    "Highballs",
+    "Mules",
+    "Shots",
+  };
+
+  bool _isDrinkProduct(ProductModel product) {
+    final category = product.category;
+    if (category != null && _drinkCategories.contains(category)) {
+      return true;
+    }
+    final name = product.name;
+    if (name == null) {
+      return false;
+    }
+    final lowered = name.toLowerCase();
+    return lowered.startsWith("getranke:") ||
+        lowered.startsWith("getränke:");
+  }
+
+  Map<String, double> _calculateVatTotals(List<ProductListModel> items) {
+    double total = 0.0;
+    double total19 = 0.0;
+    double total7 = 0.0;
+    for (final item in items) {
+      final product = item.product;
+      if (product == null) {
+        continue;
+      }
+      final price = product.price ?? 0.0;
+      final count = item.count ?? 1;
+      final lineTotal = price * count;
+      total += lineTotal;
+      if (_isDrinkProduct(product)) {
+        total19 += lineTotal;
+      } else {
+        total7 += lineTotal;
+      }
+    }
+    return {
+      "total": total,
+      "total19": total19,
+      "total7": total7,
+    };
+  }
+
+  Future<void> initProducts({bool force = false}) async {
+    final menu = await _fetchMenu(force: force);
     if (menu != null && _applyMenu(menu)) {
       return;
     }
@@ -1829,7 +1922,7 @@ beilagen.addAll([
     var tablesEncoded = jsonEncode(tables);
     print(tablesEncoded);
     depo.write("tables", tablesEncoded);
-    unawaited(initProducts());
+    unawaited(initProducts(force: true));
   }
 
  
@@ -2001,27 +2094,21 @@ beilagen.addAll([
         }
       }
 
-      double toplam = 0.00;
-      for (var i = 0;
-          i < currentTable.partialPaidConfirmedProducts!.length;
-          i++) {
-        print(
-            "Urun ${currentTable.partialPaidConfirmedProducts![i].product!.name!} Fiyat: ${currentTable.partialPaidConfirmedProducts![i].product!.price!}");
-        toplam +=
-            currentTable.partialPaidConfirmedProducts![i].product!.price! *
-                currentTable.partialPaidConfirmedProducts![i].count!;
-      }
+      final totals =
+          _calculateVatTotals(currentTable.partialPaidConfirmedProducts!);
+      final toplam = totals["total"] ?? 0.0;
+      final toplam19 = totals["total19"] ?? 0.0;
+      final toplam7 = totals["total7"] ?? 0.0;
 
-      double mwst = (toplam * 0.19);
-      double umsatz = toplam - mwst;
+      final mwst19 = toplam19 * 0.19;
+      final umsatz19 = toplam19 - mwst19;
+      final mwst7 = toplam7 * 0.07;
+      final umsatz7 = toplam7 - mwst7;
 
-      double mwst2 = (toplam * 0.07);
-      double umsatz2 = toplam - mwst2;
-
-      res["nwst19"] = "EUR " + mwst.toStringAsFixed(2);
-      res["umsatz19"] = "EUR " + umsatz.toStringAsFixed(2);
-      res["nwst7"] = "EUR " + mwst2.toStringAsFixed(2);
-      res["umsatz7"] = "EUR " + umsatz2.toStringAsFixed(2);
+      res["nwst19"] = "EUR " + mwst19.toStringAsFixed(2);
+      res["umsatz19"] = "EUR " + umsatz19.toStringAsFixed(2);
+      res["nwst7"] = "EUR " + mwst7.toStringAsFixed(2);
+      res["umsatz7"] = "EUR " + umsatz7.toStringAsFixed(2);
       res["total"] = "EUR " + toplam.toStringAsFixed(2);
       res["bar"] = "EUR " + toplam.toStringAsFixed(2);
 
@@ -2072,24 +2159,20 @@ beilagen.addAll([
         }
       }
 
-      double toplam = 0.00;
-      for (var i = 0; i < currentTable.products!.length; i++) {
-        print(
-            "Urun ${currentTable.products![i].product!.name!} Fiyat: ${currentTable.products![i].product!.price!}");
-        toplam += currentTable.products![i].product!.price! *
-            currentTable.products![i].count!;
-      }
+      final totals = _calculateVatTotals(currentTable.products!);
+      final toplam = totals["total"] ?? 0.0;
+      final toplam19 = totals["total19"] ?? 0.0;
+      final toplam7 = totals["total7"] ?? 0.0;
 
-      double mwst = (toplam * 0.19);
-      double umsatz = toplam - mwst;
+      final mwst19 = toplam19 * 0.19;
+      final umsatz19 = toplam19 - mwst19;
+      final mwst7 = toplam7 * 0.07;
+      final umsatz7 = toplam7 - mwst7;
 
-      double mwst2 = (toplam * 0.07);
-      double umsatz2 = toplam - mwst2;
-
-      res["nwst19"] = " €" + mwst.toStringAsFixed(2);
-      res["umsatz19"] = " €" + umsatz.toStringAsFixed(2);
-      res["nwst7"] = " €" + mwst2.toStringAsFixed(2);
-      res["umsatz7"] = " €" + umsatz2.toStringAsFixed(2);
+      res["nwst19"] = " €" + mwst19.toStringAsFixed(2);
+      res["umsatz19"] = " €" + umsatz19.toStringAsFixed(2);
+      res["nwst7"] = " €" + mwst7.toStringAsFixed(2);
+      res["umsatz7"] = " €" + umsatz7.toStringAsFixed(2);
       res["total"] = " €" + toplam.toStringAsFixed(2);
       res["bar"] = " €" + toplam.toStringAsFixed(2);
 
