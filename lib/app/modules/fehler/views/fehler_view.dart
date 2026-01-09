@@ -11,7 +11,7 @@ class FehlerView extends GetView<FehlerController> {
     return Scaffold(
       body: Center(
         child: Text(
-          'System Fehler : 0010',
+          'System Fehler : Lizenz nicht gefunden',
           style: TextStyle(fontSize: 20),
         ),
       ),

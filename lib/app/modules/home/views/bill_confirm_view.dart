@@ -9,6 +9,19 @@ class BillConfirmView extends GetView<HomeController> {
   @override
   Widget build(BuildContext context) {
     Map<String, dynamic>? detail;
+    bool hasValue(dynamic value) {
+      if (value == null) {
+        return false;
+      }
+      final cleaned =
+          value.toString().replaceAll(RegExp(r'[^0-9,.-]'), '').trim();
+      if (cleaned.isEmpty) {
+        return false;
+      }
+      final normalized = cleaned.replaceAll(',', '.');
+      final parsed = double.tryParse(normalized);
+      return parsed != null && parsed.abs() > 0.0001;
+    }
 
     if (Get.arguments != null) {
       detail = Get.arguments['detail'];
@@ -35,6 +48,10 @@ class BillConfirmView extends GetView<HomeController> {
                     [
                       SizedBox(height: 16),
                       GetBuilder<HomeController>(builder: (controller) {
+                        final showVat19 = hasValue(detail?['nwst19']) ||
+                            hasValue(detail?['umsatz19']);
+                        final showVat7 = hasValue(detail?['nwst7']) ||
+                            hasValue(detail?['umsatz7']);
                         return Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16.0),
                           child: Column(
@@ -66,66 +83,70 @@ class BillConfirmView extends GetView<HomeController> {
                               ),
                               Divider(),
                               SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    "MwSt %19",
-                                    style:
-                                        TextStyle(fontSize: Get.width * 0.06),
-                                  ),
-                                  Text(detail?['nwst19'],
+                              if (showVat19) ...[
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "MwSt %19",
                                       style: TextStyle(
-                                          fontSize: Get.width * 0.06)),
-                                ],
-                              ),
-                              SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    "UMSATZ %19",
-                                    style:
-                                        TextStyle(fontSize: Get.width * 0.06),
-                                  ),
-                                  Text(detail?['umsatz19'],
+                                          fontSize: Get.width * 0.06),
+                                    ),
+                                    Text(detail?['nwst19'],
+                                        style: TextStyle(
+                                            fontSize: Get.width * 0.06)),
+                                  ],
+                                ),
+                                SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "UMSATZ %19",
                                       style: TextStyle(
-                                          fontSize: Get.width * 0.06)),
-                                ],
-                              ),
-                              SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    "MwSt. %7",
-                                    style:
-                                        TextStyle(fontSize: Get.width * 0.06),
-                                  ),
-                                  Text(detail?['nwst7'],
+                                          fontSize: Get.width * 0.06),
+                                    ),
+                                    Text(detail?['umsatz19'],
+                                        style: TextStyle(
+                                            fontSize: Get.width * 0.06)),
+                                  ],
+                                ),
+                                SizedBox(height: 8),
+                              ],
+                              if (showVat7) ...[
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "MwSt. %7",
                                       style: TextStyle(
-                                          fontSize: Get.width * 0.06)),
-                                ],
-                              ),
-                              SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    "UMSATZ %7",
-                                    style:
-                                        TextStyle(fontSize: Get.width * 0.06),
-                                  ),
-                                  Text(detail?['umsatz7'],
+                                          fontSize: Get.width * 0.06),
+                                    ),
+                                    Text(detail?['nwst7'],
+                                        style: TextStyle(
+                                            fontSize: Get.width * 0.06)),
+                                  ],
+                                ),
+                                SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      "UMSATZ %7",
                                       style: TextStyle(
-                                          fontSize: Get.width * 0.06)),
-                                ],
-                              ),
-                              SizedBox(height: 8),
+                                          fontSize: Get.width * 0.06),
+                                    ),
+                                    Text(detail?['umsatz7'],
+                                        style: TextStyle(
+                                            fontSize: Get.width * 0.06)),
+                                  ],
+                                ),
+                                SizedBox(height: 8),
+                              ],
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,

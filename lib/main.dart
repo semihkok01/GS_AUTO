@@ -13,14 +13,18 @@ var depo = GetStorage();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  var response =
-      await Dio().get('http://mobil-dershane.com/license/license-buns');
-  //print(response);
-  print(response.data);
-  String mesaj = response.toString();
+  String mesaj = "false";
+  try {
+    final response =
+        await Dio().get('https://mobil-dershane.com/license/license-buns.php');
+    //print(response);
+    print(response.data);
+    mesaj = response.data?.toString().trim() ?? "false";
+  } catch (e) {
+    print(e);
+  }
   if (mesaj == "true") {
     try {
-      await GetStorage.init();
       await SystemChrome.setPreferredOrientations([
         DeviceOrientation.portraitUp,
         DeviceOrientation.portraitDown,
@@ -39,6 +43,7 @@ void main() async {
           ),
         );
       });
+      await GetStorage.init();
       depo.writeIfNull("zvurulan", 0.00);
       depo.writeIfNull("ztoplam", 0.00);
 
