@@ -3,16 +3,16 @@ version: 1.0.3+2
 publish_to: none
 description: A new Flutter project.
 environment: 
-  sdk: '>=2.12.0 <3.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies: 
   cupertino_icons:
-  getwidget: 
+  getwidget: ^7.0.0
   get: 
   uuid: 
   oktoast: 
   image: 
-  charset_converter: 
+  charset_converter: ^2.2.0
   flutter_speed_dial: 
   intl: 
   qr_flutter: 
@@ -26,7 +26,7 @@ dependencies:
 dev_dependencies: 
   flutter_test: 
     sdk: flutter
-  flutter_launcher_icons: ^0.11.0
+  flutter_launcher_icons: ^0.14.4
 flutter_icons:
   android: "launcher_icon"
   ios: true

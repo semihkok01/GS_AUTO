@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
@@ -69,7 +70,118 @@ class HomeController extends GetxController {
   List<ExtraModel> extras = [];
   var addedText = "".obs;
 
-  void initProducts() {
+  static const String _menuUrl = "https://mobil-dershane.com/menu/menu.json";
+  Future<Map<String, dynamic>?>? _menuFetchFuture;
+
+  Future<Map<String, dynamic>?> _fetchMenu() async {
+    _menuFetchFuture ??= _loadMenu();
+    final menu = await _menuFetchFuture;
+    _menuFetchFuture = null;
+    return menu;
+  }
+
+  Future<Map<String, dynamic>?> _loadMenu() async {
+    try {
+      final response = await Dio().get(_menuUrl);
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return data;
+      }
+      if (data is Map) {
+        return Map<String, dynamic>.from(data);
+      }
+      if (data is String) {
+        final decoded = jsonDecode(data);
+        if (decoded is Map) {
+          return Map<String, dynamic>.from(decoded);
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  int? _readInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    return null;
+  }
+
+  double? _readDouble(dynamic value) {
+    if (value is num) {
+      return value.toDouble();
+    }
+    return null;
+  }
+
+  List<ProductModel> _mapCategory(dynamic items, String categoryName) {
+    if (items is! List) {
+      return [];
+    }
+    return items
+        .whereType<Map>()
+        .map((item) => ProductModel(
+              id: _readInt(item["id"]),
+              category: categoryName,
+              name: item["name"] as String?,
+              price: _readDouble(item["price"]),
+              hasExtra: item["hasExtra"] as bool?,
+              printerId: _readInt(item["printerId"]),
+            ))
+        .toList();
+  }
+
+  bool _applyMenu(Map<String, dynamic> menu) {
+    final categoriesRaw = menu["categories"];
+    if (categoriesRaw is! Map) {
+      return false;
+    }
+    final categories = Map<String, dynamic>.from(categoriesRaw);
+    final categoryTargets = <String, RxList>{
+      "Buns Upgrades": bunsupgrade,
+      "Softdrinks": softdrinks,
+      "Saefte und Schorlen": safte,
+      "Iced Tea Und Refresher": icetea,
+      "Hot Drinks": hotdrinks,
+      "Wein und Spritzig": wein,
+      "Fassbier": fass,
+      "Flaschenbier": flaschen,
+      "Cocktails": cocktails,
+      "Mocktails": mocktails,
+      "Highballs": highballs,
+      "Mules": mules,
+      "Shots": shots,
+      "Buns": buns,
+      "Sandbuns": sandbuns,
+      "Hausgemachte Saucen": hausgemacht,
+      "Beilagen": beilagen,
+      "Bowls": bowls,
+      "Sweets": sweets,
+    };
+    categoryTargets.forEach((categoryName, targetList) {
+      targetList.value = [];
+      targetList.addAll(_mapCategory(categories[categoryName], categoryName));
+    });
+
+    extras = [];
+    extraCategories = [
+      "Ekstra",
+    ];
+    extras.addAll([]);
+    update();
+    print("Menu loaded from URL: $_menuUrl");
+    return true;
+  }
+
+  Future<void> initProducts() async {
+    final menu = await _fetchMenu();
+    if (menu != null && _applyMenu(menu)) {
+      return;
+    }
+
   bunsupgrade.value = [];
 bunsupgrade.addAll([
   ProductModel(id: 200, category: "Buns Upgrades", name: "Süßkartoffel-Pommes", price: 2.5, hasExtra: false, printerId: 0),
@@ -1717,7 +1829,7 @@ beilagen.addAll([
     var tablesEncoded = jsonEncode(tables);
     print(tablesEncoded);
     depo.write("tables", tablesEncoded);
-    initProducts();
+    unawaited(initProducts());
   }
 
  
@@ -2064,7 +2176,7 @@ beilagen.addAll([
     super.onInit();
     depo.write("tables", null);
     initTables();
-    initProducts();
+    unawaited(initProducts());
     initBillCount();
     initZReportTable();
     initBills();
